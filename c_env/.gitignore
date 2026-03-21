@@ -1,0 +1,5 @@
+# PowerShell scripts
+*.ps1
+
+# Windows executables
+*.exe
