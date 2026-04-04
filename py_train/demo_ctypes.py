@@ -1,4 +1,4 @@
-from maze_ctypes import ACTION_DOWN, ACTION_RIGHT, ACTION_STAY, MazeBatchEnv
+from maze_ctypes import ACTION_DOWN, ACTION_RIGHT, MazeBatchEnv
 
 
 def main() -> None:
@@ -6,7 +6,7 @@ def main() -> None:
     observations = env.reset()
     print(f"reset observation shape = ({len(observations)}, {len(observations[0])})")
 
-    actions = [ACTION_RIGHT, ACTION_DOWN, ACTION_STAY]
+    actions = [ACTION_RIGHT, ACTION_DOWN, ACTION_RIGHT]
     observations, rewards, dones, truncateds = env.step(actions)
 
     print(f"step observation shape = ({len(observations)}, {len(observations[0])})")

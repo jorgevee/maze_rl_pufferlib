@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import ctypes
+import sys
 from pathlib import Path
 
 
 GRID_WIDTH = 12
 GRID_HEIGHT = 10
-OBSERVATION_SIZE = GRID_WIDTH * GRID_HEIGHT
+OBSERVATION_SIZE = GRID_WIDTH * GRID_HEIGHT + 8
 DEFAULT_MAX_STEPS = 128
 
 ACTION_UP = 0
 ACTION_DOWN = 1
 ACTION_LEFT = 2
 ACTION_RIGHT = 3
-ACTION_STAY = 4
 
 
 class MazeStepResult(ctypes.Structure):
@@ -43,7 +43,20 @@ class MazeEnv(ctypes.Structure):
 
 
 def _default_library_path() -> Path:
-    return Path(__file__).resolve().parent.parent / "c_env" / "maze_env.dll"
+    root = Path(__file__).resolve().parent.parent / "c_env"
+
+    if sys.platform == "win32":
+        candidates = [root / "maze_env.dll"]
+    elif sys.platform == "darwin":
+        candidates = [root / "maze_env.dylib", root / "maze_env.so"]
+    else:
+        candidates = [root / "maze_env.so", root / "maze_env.dylib"]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    return candidates[0]
 
 
 class MazeLibrary:
@@ -104,6 +117,19 @@ class MazeBatchEnv:
     def reset(self) -> list[list[float]]:
         self.lib.lib.reset_batch(self.envs, self.num_envs)
         return self.get_observation()
+
+    def reset_index(self, env_index: int) -> list[float]:
+        if env_index < 0 or env_index >= self.num_envs:
+            raise IndexError(f"env_index out of range: {env_index}")
+
+        self.lib.lib.reset(ctypes.byref(self.envs[env_index]))
+        self.lib.lib.get_observation(
+            ctypes.byref(self.envs[env_index]),
+            ctypes.byref(self.observations, env_index * OBSERVATION_SIZE * ctypes.sizeof(ctypes.c_float)),
+        )
+
+        start = env_index * OBSERVATION_SIZE
+        return [float(self.observations[start + cell]) for cell in range(OBSERVATION_SIZE)]
 
     def step(self, actions: list[int] | tuple[int, ...]) -> tuple[list[list[float]], list[float], list[int], list[int]]:
         if len(actions) != self.num_envs:
