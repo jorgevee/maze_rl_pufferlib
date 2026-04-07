@@ -1,5 +1,6 @@
 #include "maze_env.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 static const char *kMaze[GRID_HEIGHT] = {
@@ -38,6 +39,11 @@ static bool IsWall(int x, int y)
     }
 
     return kMaze[y][x] == '#';
+}
+
+static int ManhattanDistance(int x0, int y0, int x1, int y1)
+{
+    return abs(x0 - x1) + abs(y0 - y1);
 }
 
 void maze_init_env(MazeEnv *env, bool renderEnabled, int maxSteps)
@@ -79,6 +85,7 @@ MazeStepResult step(MazeEnv *env, MazeAction action)
 
     int dx = 0;
     int dy = 0;
+    int previousDistance = ManhattanDistance(env->playerX, env->playerY, env->goalX, env->goalY);
 
     switch (action) {
         case ACTION_UP:
@@ -93,7 +100,6 @@ MazeStepResult step(MazeEnv *env, MazeAction action)
         case ACTION_RIGHT:
             dx = 1;
             break;
-        case ACTION_STAY:
         default:
             break;
     }
@@ -102,15 +108,16 @@ MazeStepResult step(MazeEnv *env, MazeAction action)
     int nextY = env->playerY + dy;
     bool blocked = IsWall(nextX, nextY);
 
-    result.reward = -0.1f;
+    result.reward = -0.02f;
 
-    if (action == ACTION_STAY) {
-        result.reward = -0.2f;
-    } else if (blocked) {
-        result.reward = -0.5f;
+    if (blocked) {
+        result.reward -= 0.30f;
     } else {
         env->playerX = nextX;
         env->playerY = nextY;
+
+        int currentDistance = ManhattanDistance(env->playerX, env->playerY, env->goalX, env->goalY);
+        result.reward += 0.30f * (float)(previousDistance - currentDistance);
     }
 
     env->steps += 1;
@@ -169,6 +176,15 @@ void get_observation(const MazeEnv *env, float *outBuffer)
             outBuffer[index] = value;
         }
     }
+
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 0] = (float)env->playerX / (float)(GRID_WIDTH - 1);
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 1] = (float)env->playerY / (float)(GRID_HEIGHT - 1);
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 2] = (float)env->goalX / (float)(GRID_WIDTH - 1);
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 3] = (float)env->goalY / (float)(GRID_HEIGHT - 1);
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 4] = IsWall(env->playerX, env->playerY - 1) ? 0.0f : 1.0f;
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 5] = IsWall(env->playerX, env->playerY + 1) ? 0.0f : 1.0f;
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 6] = IsWall(env->playerX - 1, env->playerY) ? 0.0f : 1.0f;
+    outBuffer[GRID_WIDTH * GRID_HEIGHT + 7] = IsWall(env->playerX + 1, env->playerY) ? 0.0f : 1.0f;
 }
 
 void get_observation_batch(const MazeEnv *envs, float *outBuffer, int numEnvs)
@@ -189,8 +205,6 @@ const char *maze_action_name(MazeAction action)
             return "left";
         case ACTION_RIGHT:
             return "right";
-        case ACTION_STAY:
-            return "stay";
         default:
             return "unknown";
     }
@@ -208,6 +222,6 @@ MazeAction maze_parse_action_char(int c)
         case 'd':
             return ACTION_RIGHT;
         default:
-            return ACTION_STAY;
+            return ACTION_UP;
     }
 }

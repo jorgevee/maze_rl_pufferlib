@@ -11,15 +11,14 @@
 
 #define GRID_WIDTH 12
 #define GRID_HEIGHT 10
-#define OBSERVATION_SIZE (GRID_WIDTH * GRID_HEIGHT)
+#define OBSERVATION_SIZE (GRID_WIDTH * GRID_HEIGHT + 8)
 #define DEFAULT_MAX_STEPS 128
 
 typedef enum MazeAction {
     ACTION_UP = 0,
     ACTION_DOWN = 1,
     ACTION_LEFT = 2,
-    ACTION_RIGHT = 3,
-    ACTION_STAY = 4
+    ACTION_RIGHT = 3
 } MazeAction;
 
 typedef struct MazeStepResult {
